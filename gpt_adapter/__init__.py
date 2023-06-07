@@ -2,11 +2,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 from .utils import *
-from .adapter import LlamaAdapter, llama_adapter_set_kwargs
+from .adapter import OPTNaiveAdapter, llama_adapter_set_kwargs
 
+__author__ = "Gus"
+__url__ = "https://github.com/gusye1234/gpt-adapter"
+__version__ = "0.1"
 
 ADAPTERS = {
-    "llama_adapter": (LlamaAdapter, 
+    "opt_adapter": (OPTNaiveAdapter, 
                       get_attention_type, 
                       llama_adapter_set_kwargs,
                       normal_transit_fn)

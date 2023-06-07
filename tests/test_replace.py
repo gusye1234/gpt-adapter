@@ -14,6 +14,6 @@ def test_opt_llama_adapter():
     assert gpt_adapter.get_attention_type(model) == OPTAttention
 
     print(model)
-    model = gpt_adapter.add_adapter(model, adapter_name="llama_adapter", adapter_len=5, start_num=5)
+    model = gpt_adapter.add_adapter(model, adapter_name="opt_adapter", adapter_len=5, start_num=5)
     print(model)
     print(model(mock_input)["last_hidden_state"].shape)

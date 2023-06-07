@@ -42,6 +42,10 @@ def replace_submodule(model, key, after):
     setattr(parent, target_name, after)
     return model
 
+def freeze_module(module):
+    for p in module.parameters():
+        p.requires_grad = False
+
 def locate_replace_module(model : nn.Module, 
                           module_type,
                           new_module_type,
@@ -51,10 +55,12 @@ def locate_replace_module(model : nn.Module,
                           **kwargs):
     count_time = 0
     for key, before_module in model.named_modules():
+        freeze_module(before_module)
+        before_module.eval()
         if not isinstance(before_module, module_type):
             continue
         count_time += 1
-        if count_time < start_num:
+        if count_time <= start_num:
             continue
         
         # TODO: Double-copy module

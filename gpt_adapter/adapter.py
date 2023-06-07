@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from .utils import *
+from .utils import freeze_module
 from typing import List, Optional, Tuple, Union
 import transformers.models.opt.modeling_opt 
 
@@ -14,7 +14,7 @@ def llama_adapter_set_kwargs(before, **kwargs):
         "adapter_len": kwargs.pop("adapter_len", 10)
     }
 
-class LlamaAdapter(nn.Module):
+class OPTNaiveAdapter(nn.Module):
     def __init__(self, 
                  embed_dim, 
                  num_heads,
@@ -43,6 +43,11 @@ class LlamaAdapter(nn.Module):
 
         self.adapte_prefix = nn.Embedding(adapter_len, embed_dim)
         self.gate = nn.Parameter(torch.zeros(num_heads, 1, 1))
+
+        freeze_module(self.k_proj)
+        freeze_module(self.v_proj)
+        freeze_module(self.q_proj)
+        freeze_module(self.out_proj)
 
         
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
