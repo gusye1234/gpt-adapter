@@ -42,8 +42,8 @@ jobs:
         uses: andstor/file-existence-action@v1
         with:
           files: "./coverage.xml"
-      # - name: Upload coverage from test to Codecov
-      #   uses: codecov/codecov-action@v2
-      #   with:
-      #     file: ./coverage.xml
-      #     token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Upload coverage from test to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          file: ./coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
