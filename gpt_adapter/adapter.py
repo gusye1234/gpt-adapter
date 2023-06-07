@@ -2,7 +2,8 @@ import torch
 from torch import nn
 from .utils import freeze_module
 from typing import List, Optional, Tuple, Union
-import transformers.models.opt.modeling_opt 
+import transformers.models.opt.modeling_opt
+
 
 def llama_adapter_set_kwargs(before, **kwargs):
     return {
@@ -11,17 +12,20 @@ def llama_adapter_set_kwargs(before, **kwargs):
         "num_heads": before.num_heads,
         "dropout": before.dropout,
         "is_decoder": before.is_decoder,
-        "adapter_len": kwargs.pop("adapter_len", 10)
+        "adapter_len": kwargs.pop("adapter_len", 10),
     }
 
+
 class OPTNaiveAdapter(nn.Module):
-    def __init__(self, 
-                 embed_dim, 
-                 num_heads,
-                 dropout = 0.0,
-                 is_decoder = False,
-                 adapter_len = 10,
-                 bias = True):
+    def __init__(
+        self,
+        embed_dim,
+        num_heads,
+        dropout=0.0,
+        is_decoder=False,
+        adapter_len=10,
+        bias=True,
+    ):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_heads = num_heads
@@ -49,9 +53,12 @@ class OPTNaiveAdapter(nn.Module):
         freeze_module(self.q_proj)
         freeze_module(self.out_proj)
 
-        
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
-        return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).transpose(1, 2).contiguous()
+        return (
+            tensor.view(bsz, seq_len, self.num_heads, self.head_dim)
+            .transpose(1, 2)
+            .contiguous()
+        )
 
     def forward(
         self,
@@ -105,14 +112,22 @@ class OPTNaiveAdapter(nn.Module):
         # Add adapter prefix here
         adapter_prefix = self.adapte_prefix.weight
         prefix_len = adapter_prefix.shape[0]
-        key_prefixes = self._shape(self.k_proj(adapter_prefix).repeat(bsz, 1, 1), -1, bsz)
-        value_prefixes = self._shape(self.v_proj(adapter_prefix).repeat(bsz, 1, 1), -1, bsz)
+        key_prefixes = self._shape(
+            self.k_proj(adapter_prefix).repeat(bsz, 1, 1), -1, bsz
+        )
+        value_prefixes = self._shape(
+            self.v_proj(adapter_prefix).repeat(bsz, 1, 1), -1, bsz
+        )
 
         key_states = torch.cat([key_prefixes, key_states], dim=2)
         value_states = torch.cat([value_prefixes, value_states], dim=2)
-        attention_mask = torch.cat([
-            torch.zeros(bsz, 1, tgt_len, prefix_len).to(attention_mask), attention_mask
-        ], dim=3)
+        attention_mask = torch.cat(
+            [
+                torch.zeros(bsz, 1, tgt_len, prefix_len).to(attention_mask),
+                attention_mask,
+            ],
+            dim=3,
+        )
 
         proj_shape = (bsz * self.num_heads, -1, self.head_dim)
         query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
@@ -121,7 +136,7 @@ class OPTNaiveAdapter(nn.Module):
 
         src_len = key_states.size(1)
         attn_weights = torch.bmm(query_states, key_states.transpose(1, 2))
-        
+
         if attn_weights.size() != (bsz * self.num_heads, tgt_len, src_len):
             raise ValueError(
                 f"Attention weights should be of size {(bsz * self.num_heads, tgt_len, src_len)}, but is"
@@ -133,25 +148,32 @@ class OPTNaiveAdapter(nn.Module):
                 raise ValueError(
                     f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}, but is {attention_mask.size()}"
                 )
-            attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
-            attn_weights = torch.max(attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min))
+            attn_weights = (
+                attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+                + attention_mask
+            )
+            attn_weights = torch.max(
+                attn_weights, torch.tensor(torch.finfo(attn_weights.dtype).min)
+            )
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
         # upcast to fp32 if the weights are in fp16. Please see https://github.com/huggingface/transformers/pull/17437
-        prefix_weights = attn_weights[...,:prefix_len]
-        token_weights = attn_weights[...,prefix_len:]
+        prefix_weights = attn_weights[..., :prefix_len]
+        token_weights = attn_weights[..., prefix_len:]
 
         if attn_weights.dtype == torch.float16:
             gates = self.gate.tanh().half().repeat(bsz, 1, 1)
-            prefix_weights = nn.functional.softmax(prefix_weights, dim=-1, dtype=torch.float32).to(torch.float16)
-            token_weights = nn.functional.softmax(token_weights, dim=-1, dtype=torch.float32).to(torch.float16)
+            prefix_weights = nn.functional.softmax(
+                prefix_weights, dim=-1, dtype=torch.float32
+            ).to(torch.float16)
+            token_weights = nn.functional.softmax(
+                token_weights, dim=-1, dtype=torch.float32
+            ).to(torch.float16)
         else:
             gates = self.gate.tanh().repeat(bsz, 1, 1)
             prefix_weights = nn.functional.softmax(prefix_weights, dim=-1)
             token_weights = nn.functional.softmax(token_weights, dim=-1)
-        attn_weights = torch.cat(
-            [gates*prefix_weights, token_weights], dim=-1
-        )
+        attn_weights = torch.cat([gates * prefix_weights, token_weights], dim=-1)
 
         if layer_head_mask is not None:
             if layer_head_mask.size() != (self.num_heads,):
@@ -159,7 +181,9 @@ class OPTNaiveAdapter(nn.Module):
                     f"Head mask for a single layer should be of size {(self.num_heads,)}, but is"
                     f" {layer_head_mask.size()}"
                 )
-            attn_weights = layer_head_mask.view(1, -1, 1, 1) * attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+            attn_weights = layer_head_mask.view(1, -1, 1, 1) * attn_weights.view(
+                bsz, self.num_heads, tgt_len, src_len
+            )
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
         if output_attentions:
@@ -167,12 +191,18 @@ class OPTNaiveAdapter(nn.Module):
             # make sure that attn_weights keeps its gradient.
             # In order to do so, attn_weights have to be reshaped
             # twice and have to be reused in the following
-            attn_weights_reshaped = attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights_reshaped.view(bsz * self.num_heads, tgt_len, src_len)
+            attn_weights_reshaped = attn_weights.view(
+                bsz, self.num_heads, tgt_len, src_len
+            )
+            attn_weights = attn_weights_reshaped.view(
+                bsz * self.num_heads, tgt_len, src_len
+            )
         else:
             attn_weights_reshaped = None
 
-        attn_probs = nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_probs = nn.functional.dropout(
+            attn_weights, p=self.dropout, training=self.training
+        )
 
         attn_output = torch.bmm(attn_probs, value_states)
 
