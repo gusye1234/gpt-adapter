@@ -1,7 +1,15 @@
 <div align="center">
   <h1>gpt-adapter🫥</h1>
   <p><strong>Enable quick fine-tuning for popular HuggingFace🤗 models in one line</strong></p>
+      <p>
+    <a href="https://github.com/gusye1234/gpt-adapter/actions/workflows/main.yml">
+      <img src="https://github.com/gusye1234/gpt-adapter/actions/workflows/main.yml/badge.svg">
+    </a>
+        <a href="https://codecov.io/gh/gusye1234/gpt-adapter" >
+ <img src="https://codecov.io/gh/gusye1234/gpt-adapter/branch/main/graph/badge.svg?token=q4ajb6LVcm"/> </a>
+ 	</p>
 </div>
+
 
 
 
