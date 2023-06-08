@@ -49,9 +49,15 @@ def replace_submodule(model, key, after):
     return model
 
 
+def if_field_in_key(field, key):
+    fields = key.split(".")
+    return any([f == field for f in fields])
+
+
 def freeze_module(module):
     for p in module.parameters():
         p.requires_grad = False
+    return module
 
 
 def locate_replace_module(
