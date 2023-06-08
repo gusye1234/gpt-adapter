@@ -38,13 +38,13 @@ pip install -e .
 ## TODOs
 
 More models to support
-
-- [ ] LLama
+- [x] OPT
+- [x] LLama
 - [ ] GPT
 - [ ] BLOOM
 
 More PEFT algorithms to support
-
+- [x] Adapter
 - [ ] Lora
 - [ ] P-tuning
 - [ ] ...
