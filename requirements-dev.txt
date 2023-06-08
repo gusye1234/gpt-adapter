@@ -1,0 +1,5 @@
+torch
+transformers
+tabulate
+pytest
+pytest-cov

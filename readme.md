@@ -18,7 +18,7 @@
 ```python
 from transformers import AutoModel
 import gpt_adapter
-model = AutoModel.from_pretrained("facebook/opt-350m)
+model = AutoModel.from_pretrained("facebook/opt-350m")
 
 model = gpt_adapter.add_adapter(model, adapter_name="opt_adapter")
 ```
