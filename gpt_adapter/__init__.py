@@ -52,4 +52,5 @@ def add_adapter(
         transit_fn=transit_fn,
         **kwargs
     )
+    model.config.adapter_start_num = start_num
     return model

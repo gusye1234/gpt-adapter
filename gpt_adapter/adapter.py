@@ -12,6 +12,7 @@ from transformers.models.llama.modeling_llama import (
 
 
 def opt_adapter_set_kwargs(before, **kwargs):
+    dtype = next(before.parameters()).dtype
     return {
         "embed_dim": before.embed_dim,
         "num_heads": before.num_heads,
@@ -19,6 +20,7 @@ def opt_adapter_set_kwargs(before, **kwargs):
         "dropout": before.dropout,
         "is_decoder": before.is_decoder,
         "adapter_len": kwargs.pop("adapter_len", 10),
+        "dtype": dtype,
     }
 
 
@@ -31,6 +33,7 @@ class OPTNaiveAdapter(nn.Module):
         is_decoder=False,
         adapter_len=10,
         bias=True,
+        dtype=torch.float,
     ):
         super().__init__()
         self.embed_dim = embed_dim
@@ -51,13 +54,14 @@ class OPTNaiveAdapter(nn.Module):
         self.q_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
 
-        self.adapte_prefix = nn.Embedding(adapter_len, embed_dim)
+        self.adapter_prefix = nn.Embedding(adapter_len, embed_dim)
         self.gate = nn.Parameter(torch.zeros(num_heads, 1, 1))
 
         freeze_module(self.k_proj)
         freeze_module(self.v_proj)
         freeze_module(self.q_proj)
         freeze_module(self.out_proj)
+        self.to(dtype)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return (
@@ -117,7 +121,7 @@ class OPTNaiveAdapter(nn.Module):
 
         # --------------------------------------------------
         # Add adapter prefix here
-        adapter_prefix = self.adapte_prefix.weight
+        adapter_prefix = self.adapter_prefix.weight
         prefix_len = adapter_prefix.shape[0]
         key_prefixes = self._shape(
             self.k_proj(adapter_prefix).repeat(bsz, 1, 1), -1, bsz
@@ -234,16 +238,18 @@ class OPTNaiveAdapter(nn.Module):
 
 
 def llama_adapter_set_kwargs(before, **kwargs):
+    dtype = next(before.parameters()).dtype
     return {
         "config": before.config,
         "adapter_len": kwargs.pop("adapter_len", 10),
+        "dtype": dtype,
     }
 
 
 class LlamaNaiveAdapter(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
-    def __init__(self, config: LlamaConfig, adapter_len):
+    def __init__(self, config: LlamaConfig, adapter_len, dtype=torch.float):
         super().__init__()
         self.config = config
         self.hidden_size = config.hidden_size
@@ -274,8 +280,10 @@ class LlamaNaiveAdapter(nn.Module):
             )
         )
 
-        self.adapte_prefix = nn.Embedding(adapter_len, self.hidden_size)
+        self.adapter_prefix = nn.Embedding(adapter_len, self.hidden_size)
         self.gate = nn.Parameter(torch.zeros(self.num_heads, 1, 1))
+
+        self.to(dtype)
 
     def _shape(self, tensor: torch.Tensor, seq_len: int, bsz: int):
         return (
@@ -329,7 +337,7 @@ class LlamaNaiveAdapter(nn.Module):
 
         # --------------------------------------------------
         # add adapter here
-        adapter_prefix = self.adapte_prefix.weight
+        adapter_prefix = self.adapter_prefix.weight
         prefix_len = adapter_prefix.shape[0]
         key_prefixes = (
             self.k_proj(adapter_prefix)

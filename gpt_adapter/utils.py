@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import logging
+from transformers.models.llama.modeling_llama import LlamaForCausalLM
 
 
 def get_module_device(module: nn.Module):
@@ -89,7 +90,7 @@ def locate_replace_module(
         transit_fn(before_module, after_module)
         replace_submodule(model, key, after_module)
 
-        logging.info(
+        logging.debug(
             f"Replace one {key}, seen {count_time} times, {before_module} -> {after_module}"
         )
     return model

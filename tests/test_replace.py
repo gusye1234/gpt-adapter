@@ -32,12 +32,16 @@ def test_opt_adapter():
     assert gpt_adapter.get_attention_type(model) == OPTAttention
 
     before_str = "\n".join([k for k, p in model.named_parameters() if p.requires_grad])
+    before_out = model(mock_input)["last_hidden_state"]
     model = gpt_adapter.add_adapter(
         model, adapter_name="opt_adapter", adapter_len=5, start_num=3
     )
     after_str = "\n".join([k for k, p in model.named_parameters() if p.requires_grad])
+    after_out = model(mock_input)["last_hidden_state"]
+
     print(tabulate([[before_str, after_str]]))
-    print(model(mock_input)["last_hidden_state"].shape)
+    assert before_out.shape == after_out.shape, "Cause shape change"
+    assert before_out == after_out, "Zero init is not satisfied!"
     assert_grad_parameters(["gate", "adapte_prefix"], model)
 
 
@@ -52,10 +56,15 @@ def test_llama_adapter():
 
     assert gpt_adapter.get_attention_type(model) == LlamaAttention
 
-    print(model)
+    before_str = "\n".join([k for k, p in model.named_parameters() if p.requires_grad])
+    before_out = model(mock_input)["last_hidden_state"]
     model = gpt_adapter.add_adapter(
         model, adapter_name="llama_adapter", adapter_len=5, start_num=3
     )
-    print(model)
-    print(model(mock_input)["last_hidden_state"].shape)
+    after_str = "\n".join([k for k, p in model.named_parameters() if p.requires_grad])
+    after_out = model(mock_input)["last_hidden_state"]
+
+    print(tabulate([[before_str, after_str]]))
+    assert before_out.shape == after_out.shape, "Cause shape change"
+    assert before_out == after_out, "Zero init is not satisfied!"
     assert_grad_parameters(["gate", "adapte_prefix"], model)

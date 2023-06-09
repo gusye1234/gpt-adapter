@@ -10,9 +10,27 @@
  	</p>
 </div>
 
+## Examples
+Few lines of clean code to load a ready-to-chat LLM: [LLaMA-Adapter](https://github.com/ZrrSkywalker/LLaMA-Adapter/tree/main):
+```python
+import gpt_adapter
+from gpt_adapter import convert
+from transformers import AutoModelForCausalLM
 
+model = AutoModelForCausalLM.from_pretrained(<LLAMA_DIR>)
+model = gpt_adapter.add_adapter(model, adapter_name="llama_adapter", start_num=2, adapter_len=10)
 
+add_state_dict = convert.convert_llama_adapter_v1(<ADAPTER_WEIGHT>)
+model.load_state_dict(add_state_dict, strict=False)
+```
+where `<LLAMA_DIR>` is your llama-7B checkpoint dir or unofficial huggingface models(*e.g.* `nyanko7/LLaMA-7B`), `<ADAPTER_WEIGHT>` is the adapters weight of LLaMA-Adapter which is really small and can be downloaded from [here](https://github.com/ZrrSkywalker/LLaMA-Adapter/tree/main/alpaca_finetuning_v1).
 
+A chat script is ready at `examples/load_llama_adapterv1.py`. Replace those paths and you can have a AI assistant:
+```
+>>Hi!
+Hello!
+...
+```
 ## Quick start
 
 ```python
@@ -25,7 +43,7 @@ model = gpt_adapter.add_adapter(model, adapter_name="opt_adapter")
 
 After `gpt_adapter.add_adapter`, the most of the parameters of `model` will be frozen and the attention layer will be replaced by the adapter layer, referring to [Llama-Adapter](https://arxiv.org/pdf/2303.16199.pdf).
 
-By doing this, the trainable parameters are dramatically reduced. A six-layer OPT model
+By doing this, the trainable parameters are dramatically reduced. A six-layer OPT model with last 3 layer is adapted:
 ```
 Normal trainable parameters                   Using gpt-adapter
 ----------------------------------------      -----------------------------------------------
