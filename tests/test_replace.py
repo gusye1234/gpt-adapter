@@ -22,7 +22,7 @@ def assert_grad_parameters(names, module):
 
 def test_opt_adapter():
     opt_config = OPTConfig(hidden_size=12 * 6, num_hidden_layers=6)
-    model = OPTModel(opt_config)
+    model = OPTModel(opt_config).eval()
 
     mock_input = torch.randint(0, 1000, (1, 4), dtype=torch.long)
     if torch.cuda.is_available():
@@ -41,13 +41,15 @@ def test_opt_adapter():
 
     print(tabulate([[before_str, after_str]]))
     assert before_out.shape == after_out.shape, "Cause shape change"
-    assert before_out == after_out, "Zero init is not satisfied!"
-    assert_grad_parameters(["gate", "adapte_prefix"], model)
+    assert torch.allclose(
+        before_out, after_out, rtol=1e-4
+    ), "Zero init is not satisfied!"
+    assert_grad_parameters(["gate", "adapter_prefix"], model)
 
 
 def test_llama_adapter():
     llama_config = LlamaConfig(hidden_size=64, num_hidden_layers=6)
-    model = LlamaModel(llama_config)
+    model = LlamaModel(llama_config).eval()
 
     mock_input = torch.randint(0, 1000, (1, 4), dtype=torch.long)
     if torch.cuda.is_available():
@@ -66,5 +68,7 @@ def test_llama_adapter():
 
     print(tabulate([[before_str, after_str]]))
     assert before_out.shape == after_out.shape, "Cause shape change"
-    assert before_out == after_out, "Zero init is not satisfied!"
-    assert_grad_parameters(["gate", "adapte_prefix"], model)
+    assert torch.allclose(
+        before_out, after_out, rtol=1e-4
+    ), "Zero init is not satisfied!"
+    assert_grad_parameters(["gate", "adapter_prefix"], model)

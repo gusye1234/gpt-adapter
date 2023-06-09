@@ -187,6 +187,7 @@ class OPTNaiveAdapter(nn.Module):
             prefix_weights = nn.functional.softmax(prefix_weights, dim=-1)
             token_weights = nn.functional.softmax(token_weights, dim=-1)
         attn_weights = torch.cat([gates * prefix_weights, token_weights], dim=-1)
+
         # --------------------------------------------------
         if layer_head_mask is not None:
             if layer_head_mask.size() != (self.num_heads,):
